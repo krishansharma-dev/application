@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserPlus, LogIn, Briefcase } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,7 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -27,12 +29,18 @@ export default function LoginPage() {
           },
         });
         if (error) throw error;
+
+        // ✅ Redirect after signup
+        router.push('/application');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+
+        // ✅ Redirect after login
+        router.push('/application');
       }
     } catch (error: any) {
       setError(error.message);
@@ -60,10 +68,12 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name
+              </label>
               <input
                 type="text"
                 required
@@ -75,7 +85,9 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               required
@@ -86,7 +98,9 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
             <input
               type="password"
               required
@@ -97,30 +111,25 @@ export default function LoginPage() {
           </div>
 
           <button
-            type="button"
+            type="submit"
             disabled={loading}
-            onClick={handleSubmit}
             className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {loading ? (
               'Loading...'
+            ) : isSignUp ? (
+              <>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Create Account
+              </>
             ) : (
               <>
-                {isSignUp ? (
-                  <>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Create Account
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Sign In
-                  </>
-                )}
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In
               </>
             )}
           </button>
-        </div>
+        </form>
 
         <div className="mt-6 text-center">
           <button
@@ -128,7 +137,9 @@ export default function LoginPage() {
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
           >
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            {isSignUp
+              ? 'Already have an account? Sign in'
+              : "Don't have an account? Sign up"}
           </button>
         </div>
       </div>

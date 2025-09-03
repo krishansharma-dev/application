@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { AuthError, Session } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import LoginPage from '@/app/login/page';
 
 interface AuthWrapperProps {
@@ -12,42 +13,55 @@ interface AuthWrapperProps {
 export default function AuthWrapper({ children }: AuthWrapperProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setSession(session);
       setLoading(false);
+
+      if (session?.user) {
+        router.push('/application'); // ✅ Redirect if already logged in
+      }
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setLoading(false);
 
-        if (session?.user && event === 'SIGNED_IN') {
-          // Create user profile if it doesn't exist
-          const { error } = await supabase
-            .from('users')
-            .upsert([
-              {
-                id: session.user.id,
-                email: session.user.email!,
-                name: session.user.user_metadata?.name || session.user.email!,
-              },
-            ]);
+      if (session?.user && event === 'SIGNED_IN') {
+        // ✅ Redirect after sign in
+        router.push('/application');
 
-          if (error) {
-            console.error('Error creating user profile:', error);
-          }
+        // Create user profile if it doesn't exist
+        const { error } = await supabase.from('users').upsert([
+          {
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.name || session.user.email!,
+          },
+        ]);
+
+        if (error) {
+          console.error('Error creating user profile:', error);
         }
       }
-    );
+
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        router.push('/login'); // ✅ Redirect after logout
+      }
+    });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (
