@@ -1,81 +1,114 @@
-import React from 'react';
-import { Search, Filter } from 'lucide-react';
-import { ApplicationStatus, Priority } from '@/types/application';
+"use client"
 
-interface FilterState {
-  search: string;
-  status: ApplicationStatus | 'All';
-  priority: Priority | 'All';
-  followUpDue: boolean;
+import type React from "react"
+
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Search, Plus, SlidersHorizontal } from "lucide-react"
+
+interface FiltersProps {
+  filters: {
+    status: string
+    priority: string
+    search: string
+    sortBy: string
+    sortOrder: string
+  }
+  onFilterChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
+  onAddClick: () => void
+  showForm: boolean
 }
 
-interface ApplicationFiltersProps {
-  filters: FilterState;
-  onFiltersChange: (filters: FilterState) => void;
-}
-
-export default function ApplicationFilters({ filters, onFiltersChange }: ApplicationFiltersProps) {
-  const updateFilter = (key: keyof FilterState, value: any) => {
-    onFiltersChange({ ...filters, [key]: value });
-  };
-
+export function ApplicationFilters({ filters, onFilterChange, onAddClick, showForm }: FiltersProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-64">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search company, role, or email..."
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              name="search"
               value={filters.search}
-              onChange={(e) => updateFilter('search', e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={onFilterChange}
+              placeholder="Search companies or job titles..."
+              className="pl-10"
             />
           </div>
-        </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-700">Filters:</span>
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-1">
+              <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Filters:</span>
+            </div>
+
+            <Select
+              value={filters.status}
+              onValueChange={(value) => onFilterChange({ target: { name: "status", value } } as any)}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="Applied">Applied</SelectItem>
+                <SelectItem value="Interview Scheduled">Interview Scheduled</SelectItem>
+                <SelectItem value="Offer">Offer</SelectItem>
+                <SelectItem value="Rejected">Rejected</SelectItem>
+                <SelectItem value="Follow-Up Due">Follow-Up Due</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.priority}
+              onValueChange={(value) => onFilterChange({ target: { name: "priority", value } } as any)}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="All Priorities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                <SelectItem value="High">High</SelectItem>
+                <SelectItem value="Medium">Medium</SelectItem>
+                <SelectItem value="Low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.sortBy}
+              onValueChange={(value) => onFilterChange({ target: { name: "sortBy", value } } as any)}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="application_date">Application Date</SelectItem>
+                <SelectItem value="company_name">Company Name</SelectItem>
+                <SelectItem value="job_title">Job Title</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.sortOrder}
+              onValueChange={(value) => onFilterChange({ target: { name: "sortOrder", value } } as any)}
+            >
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Newest</SelectItem>
+                <SelectItem value="asc">Oldest</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <select
-            value={filters.status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          >
-            <option value="All">All Status</option>
-            <option value="Applied">Applied</option>
-            <option value="Interview Scheduled">Interview Scheduled</option>
-            <option value="Offer">Offer</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Follow-Up Due">Follow-Up Due</option>
-          </select>
-
-          <select
-            value={filters.priority}
-            onChange={(e) => updateFilter('priority', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          >
-            <option value="All">All Priority</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
-
-          <label className="flex items-center space-x-2 text-sm">
-            <input
-              type="checkbox"
-              checked={filters.followUpDue}
-              onChange={(e) => updateFilter('followUpDue', e.target.checked)}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <span className="text-gray-700">Follow-up Due</span>
-          </label>
+          <Button onClick={onAddClick} className="shrink-0">
+            <Plus className="h-4 w-4 mr-2" />
+            {showForm ? "Cancel" : "Add Application"}
+          </Button>
         </div>
-      </div>
-    </div>
-  );
+      </CardContent>
+    </Card>
+  )
 }
