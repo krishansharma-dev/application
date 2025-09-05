@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import { Application, EmailTemplate, DashboardStats } from '@/types/application';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/client';
 
 export function useApplications() {
   const [applications, setApplications] = useState<Application[]>([]);

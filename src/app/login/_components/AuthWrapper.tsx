@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+
 import { Session } from '@supabase/supabase-js';
 import LoginPage from '@/app/login/page';
+import { createClient } from '@/lib/client';
+
+// Create Supabase client
+const supabase = createClient();
 
 interface AuthWrapperProps {
   children: React.ReactNode;

@@ -2,8 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { UserPlus, LogIn, Briefcase } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/client';
+
+// Create Supabase client
+const supabase = createClient();
 
 export default function LoginPage() {
   const router = useRouter();

@@ -1,210 +1,364 @@
-'use client';
+"use client"
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/client';
+import { useRouter } from 'next/navigation';
 
-import { useState, useMemo } from 'react';
-import { Plus, Grid, List, Mail, Briefcase } from 'lucide-react';
-import { Application, ApplicationStatus, Priority } from '@/types/application';
-import ApplicationCard from './_components/ApplicationCard';
-import ApplicationTable from './_components/ApplicationTable';
-import ApplicationModal from './_components/ApplicationModal';
-import ApplicationFilters from './_components/ApplicationFilters';
-import BulkEmailModal from './_components/BulkEmailModal';
-import { useApplications } from '@/hooks/useApplications';
-
-
-interface FilterState {
-  search: string;
-  status: ApplicationStatus | 'All';
-  priority: Priority | 'All';
-  followUpDue: boolean;
+interface Application {
+  id: string;
+  user_id: string;
+  company_name: string;
+  job_title: string;
+  contact_email: string | null;
+  portal_link: string | null;
+  job_description: string;
+  notes: string;
+  application_date: string;
+  status: 'Applied' | 'Interview Scheduled' | 'Offer' | 'Rejected' | 'Follow-Up Due';
+  follow_up_date: string | null;
+  priority: 'High' | 'Medium' | 'Low';
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ApplicationsPage() {
-  const { 
-    applications, 
-    emailTemplates,
-    loading, 
-    createApplication, 
-    updateApplication, 
-    deleteApplication 
-  } = useApplications();
-
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isBulkEmailOpen, setIsBulkEmailOpen] = useState(false);
-  const [editingApplication, setEditingApplication] = useState<Application | null>(null);
-  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
-
-  const [filters, setFilters] = useState<FilterState>({
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    priority: 'all',
     search: '',
-    status: 'All',
-    priority: 'All',
-    followUpDue: false,
+    sortBy: 'application_date',
+    sortOrder: 'desc',
   });
+  const [newApplication, setNewApplication] = useState({
+    company_name: '',
+    job_title: '',
+    contact_email: '',
+    portal_link: '',
+    job_description: '',
+    notes: '',
+    application_date: new Date().toISOString().split('T')[0],
+    status: 'Applied' as Application['status'],
+    follow_up_date: '',
+    priority: 'Medium' as Application['priority'],
+  });
+  const router = useRouter();
+  const supabase = createClient();
 
-  const filteredApplications = useMemo(() => {
-    return applications.filter((app: Application) => {
-      const matchesSearch = 
-        app.company_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        app.job_title.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (app.contact_email && app.contact_email.toLowerCase().includes(filters.search.toLowerCase()));
+  useEffect(() => {
+    fetchApplications();
+  }, [filters]);
 
-      const matchesStatus = filters.status === 'All' || app.status === filters.status;
-      const matchesPriority = filters.priority === 'All' || app.priority === filters.priority;
+  const fetchApplications = async () => {
+    try {
+      setLoading(true);
+      const query = new URLSearchParams({
+        ...filters,
+        status: filters.status !== 'all' ? filters.status : '',
+        priority: filters.priority !== 'all' ? filters.priority : '',
+      }).toString();
       
-      const matchesFollowUp = !filters.followUpDue || 
-        (app.follow_up_date && new Date(app.follow_up_date) <= new Date());
-
-      return matchesSearch && matchesStatus && matchesPriority && matchesFollowUp;
-    });
-  }, [applications, filters]);
-
-  const handleSaveApplication = async (applicationData: Partial<Application>) => {
-    if (editingApplication) {
-      await updateApplication(editingApplication.id, applicationData);
-    } else {
-      await createApplication(applicationData);
+      const response = await fetch(`/api/application?${query}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch applications');
+      }
+      
+      setApplications(data.applications || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
     }
-    setEditingApplication(null);
   };
 
-  const handleEditApplication = (application: Application) => {
-    setEditingApplication(application);
-    setIsModalOpen(true);
-  };
+  const handleAddApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newApplication,
+          contact_email: newApplication.contact_email || null,
+          portal_link: newApplication.portal_link || null,
+          follow_up_date: newApplication.follow_up_date || null,
+        }),
+      });
 
-  const handleSelectApplication = (id: string, selected: boolean) => {
-    const newSelected = new Set(selectedApplications);
-    if (selected) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add application');
+      }
+
+      setApplications([...applications, data.application]);
+      setNewApplication({
+        company_name: '',
+        job_title: '',
+        contact_email: '',
+        portal_link: '',
+        job_description: '',
+        notes: '',
+        application_date: new Date().toISOString().split('T')[0],
+        status: 'Applied',
+        follow_up_date: '',
+        priority: 'Medium',
+      });
+      setShowForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
-    setSelectedApplications(newSelected);
   };
 
-  const handleBulkEmail = async (templateId: string, customSubject?: string, customBody?: string) => {
-    const selectedApps = applications.filter((app: Application) => selectedApplications.has(app.id));
-    
-    console.log('Sending bulk emails to:', selectedApps.length, 'applications');
-    console.log('Template ID:', templateId);
-    console.log('Custom subject:', customSubject);
-    console.log('Custom body:', customBody);
-    
-    setSelectedApplications(new Set());
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
   };
-
-  if (loading) {
-    return (
-    
-   <div className="flex items-center justify-center h-screen">nulll</div>
- ) }
 
   return (
-   <>
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Job Applications</h1>
-            <p className="text-gray-600 mt-1">
-              {filteredApplications.length} application{filteredApplications.length !== 1 ? 's' : ''} found
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            {selectedApplications.size > 0 && (
-              <button
-                onClick={() => setIsBulkEmailOpen(true)}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                Send Emails ({selectedApplications.size})
-              </button>
-            )}
-            
-            <div className="flex items-center bg-white border border-gray-300 rounded-lg">
-              <button
-                onClick={() => setViewMode('card')}
-                className={`p-2 ${viewMode === 'card' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'} transition-colors`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 ${viewMode === 'table' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'} transition-colors`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <button
-              onClick={() => {
-                setEditingApplication(null);
-                setIsModalOpen(true);
-              }}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Application
-            </button>
-          </div>
-        </div>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Job Applications</h1>
 
-        <div className="mb-6">
-          <ApplicationFilters filters={filters} onFiltersChange={setFilters} />
-        </div>
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap gap-4">
+        <select
+          name="status"
+          value={filters.status}
+          onChange={handleFilterChange}
+          className="p-2 border rounded"
+        >
+          <option value="all">All Statuses</option>
+          <option value="Applied">Applied</option>
+          <option value="Interview Scheduled">Interview Scheduled</option>
+          <option value="Offer">Offer</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Follow-Up Due">Follow-Up Due</option>
+        </select>
 
-        {viewMode === 'card' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredApplications.map((application: Application) => (
-              <ApplicationCard
-                key={application.id}
-                application={application}
-                onEdit={handleEditApplication}
-                onSelect={handleSelectApplication}
-                isSelected={selectedApplications.has(application.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <ApplicationTable
-            applications={filteredApplications}
-            onEdit={handleEditApplication}
-            onSelect={handleSelectApplication}
-            selectedApplications={selectedApplications}
-          />
-        )}
+        <select
+          name="priority"
+          value={filters.priority}
+          onChange={handleFilterChange}
+          className="p-2 border rounded"
+        >
+          <option value="all">All Priorities</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
 
-        {filteredApplications.length === 0 && (
-          <div className="text-center py-12">
-            <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">No applications found</h3>
-            <p className="text-gray-500 mt-1">
-              {filters.search || filters.status !== 'All' || filters.priority !== 'All' || filters.followUpDue
-                ? 'Try adjusting your filters to see more results.'
-                : 'Get started by adding your first job application.'
-              }
-            </p>
-          </div>
-        )}
+        <input
+          type="text"
+          name="search"
+          value={filters.search}
+          onChange={handleFilterChange}
+          placeholder="Search by company or job title"
+          className="p-2 border rounded"
+        />
+
+        <select
+          name="sortBy"
+          value={filters.sortBy}
+          onChange={handleFilterChange}
+          className="p-2 border rounded"
+        >
+          <option value="application_date">Application Date</option>
+          <option value="company_name">Company Name</option>
+          <option value="job_title">Job Title</option>
+        </select>
+
+        <select
+          name="sortOrder"
+          value={filters.sortOrder}
+          onChange={handleFilterChange}
+          className="p-2 border rounded"
+        >
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
+        </select>
+
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          {showForm ? 'Cancel' : 'Add Application'}
+        </button>
       </div>
 
-      <ApplicationModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingApplication(null);
-        }}
-        onSave={handleSaveApplication}
-        application={editingApplication}
-      />
+      {/* Add Application Form */}
+      {showForm && (
+        <div className="mb-4 p-4 border rounded">
+          <h2 className="text-xl font-semibold mb-2">Add New Application</h2>
+          <form onSubmit={handleAddApplication} className="grid gap-4">
+            <input
+              type="text"
+              value={newApplication.company_name}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, company_name: e.target.value })
+              }
+              placeholder="Company Name"
+              required
+              className="p-2 border rounded"
+            />
+            <input
+              type="text"
+              value={newApplication.job_title}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, job_title: e.target.value })
+              }
+              placeholder="Job Title"
+              required
+              className="p-2 border rounded"
+            />
+            <input
+              type="email"
+              value={newApplication.contact_email}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, contact_email: e.target.value })
+              }
+              placeholder="Contact Email (optional)"
+              className="p-2 border rounded"
+            />
+            <input
+              type="url"
+              value={newApplication.portal_link}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, portal_link: e.target.value })
+              }
+              placeholder="Portal Link (optional)"
+              className="p-2 border rounded"
+            />
+            <textarea
+              value={newApplication.job_description}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, job_description: e.target.value })
+              }
+              placeholder="Job Description (optional)"
+              className="p-2 border rounded"
+            />
+            <textarea
+              value={newApplication.notes}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, notes: e.target.value })
+              }
+              placeholder="Notes (optional)"
+              className="p-2 border rounded"
+            />
+            <input
+              type="date"
+              value={newApplication.application_date}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, application_date: e.target.value })
+              }
+              required
+              className="p-2 border rounded"
+            />
+            <select
+              value={newApplication.status}
+              onChange={(e) =>
+                setNewApplication({
+                  ...newApplication,
+                  status: e.target.value as Application['status'],
+                })
+              }
+              className="p-2 border rounded"
+            >
+              <option value="Applied">Applied</option>
+              <option value="Interview Scheduled">Interview Scheduled</option>
+              <option value="Offer">Offer</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Follow-Up Due">Follow-Up Due</option>
+            </select>
+            <input
+              type="date"
+              value={newApplication.follow_up_date}
+              onChange={(e) =>
+                setNewApplication({ ...newApplication, follow_up_date: e.target.value })
+              }
+              placeholder="Follow-up Date (optional)"
+              className="p-2 border rounded"
+            />
+            <select
+              value={newApplication.priority}
+              onChange={(e) =>
+                setNewApplication({
+                  ...newApplication,
+                  priority: e.target.value as Application['priority'],
+                })
+              }
+              className="p-2 border rounded"
+            >
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+            <button
+              type="submit"
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+            >
+              Submit
+            </button>
+          </form>
+        </div>
+      )}
 
-      <BulkEmailModal
-        isOpen={isBulkEmailOpen}
-        onClose={() => setIsBulkEmailOpen(false)}
-        selectedApplications={applications.filter((app: Application) => selectedApplications.has(app.id))}
-        emailTemplates={emailTemplates}
-        onSendEmails={handleBulkEmail}
-      />
- </>
+      {/* Applications List */}
+      {loading && <p>Loading...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      {!loading && !error && applications.length === 0 && (
+        <p>No applications found.</p>
+      )}
+      {!loading && !error && applications.length > 0 && (
+        <div className="grid gap-4">
+          {applications.map((app) => (
+            <div key={app.id} className="p-4 border rounded">
+              <h3 className="text-lg font-semibold">{app.company_name}</h3>
+              <p>Job Title: {app.job_title}</p>
+              <p>Status: {app.status}</p>
+              <p>Priority: {app.priority}</p>
+              <p>Application Date: {new Date(app.application_date).toLocaleDateString()}</p>
+              {app.follow_up_date && (
+                <p>
+                  Follow-up Date: {new Date(app.follow_up_date).toLocaleDateString()}
+                </p>
+              )}
+              {app.contact_email && <p>Contact Email: {app.contact_email}</p>}
+              {app.portal_link && (
+                <p>
+                  Portal:{' '}
+                  <a
+                    href={app.portal_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500"
+                  >
+                    Link
+                  </a>
+                </p>
+              )}
+              {app.job_description && (
+                <p>
+                  Description:{' '}
+                  {app.job_description.length > 100
+                    ? app.job_description.slice(0, 100) + '...'
+                    : app.job_description}
+                </p>
+              )}
+              {app.notes && (
+                <p>
+                  Notes:{' '}
+                  {app.notes.length > 100 ? app.notes.slice(0, 100) + '...' : app.notes}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
