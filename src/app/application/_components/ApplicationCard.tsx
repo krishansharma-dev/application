@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CalendarDays, ExternalLink, Mail, Building2 } from "lucide-react"
+import Link from "next/link"
 
 interface Application {
   id: string
@@ -107,6 +108,9 @@ export function ApplicationCard({ application }: ApplicationCardProps) {
         )}
 
         <div className="flex gap-2 pt-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/application/${application.id}`}>View Details</Link>
+          </Button>
           {application.contact_email && (
             <Button variant="outline" size="sm" asChild>
               <a href={`mailto:${application.contact_email}`}>

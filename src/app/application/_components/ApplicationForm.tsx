@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,9 +32,10 @@ interface ApplicationFormProps {
   onSubmit: (application: Omit<Application, "id" | "user_id" | "created_at" | "updated_at">) => void
   onCancel: () => void
   loading?: boolean
+  initialData?: Application | null
 }
 
-export function ApplicationForm({ onSubmit, onCancel, loading = false }: ApplicationFormProps) {
+export function ApplicationForm({ onSubmit, onCancel, loading = false, initialData }: ApplicationFormProps) {
   const [formData, setFormData] = useState({
     company_name: "",
     job_title: "",
@@ -47,6 +48,23 @@ export function ApplicationForm({ onSubmit, onCancel, loading = false }: Applica
     follow_up_date: "",
     priority: "Medium" as Application["priority"],
   })
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        company_name: initialData.company_name,
+        job_title: initialData.job_title,
+        contact_email: initialData.contact_email || "",
+        portal_link: initialData.portal_link || "",
+        job_description: initialData.job_description,
+        notes: initialData.notes,
+        application_date: initialData.application_date,
+        status: initialData.status,
+        follow_up_date: initialData.follow_up_date || "",
+        priority: initialData.priority,
+      })
+    }
+  }, [initialData])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,7 +83,7 @@ export function ApplicationForm({ onSubmit, onCancel, loading = false }: Applica
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle>Add New Application</CardTitle>
+        <CardTitle>{initialData ? "Edit Application" : "Add New Application"}</CardTitle>
         <Button variant="ghost" size="sm" onClick={onCancel}>
           <X className="h-4 w-4" />
         </Button>
@@ -187,7 +205,13 @@ export function ApplicationForm({ onSubmit, onCancel, loading = false }: Applica
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={loading}>
-              {loading ? "Adding..." : "Add Application"}
+              {loading
+                ? initialData
+                  ? "Updating..."
+                  : "Adding..."
+                : initialData
+                  ? "Update Application"
+                  : "Add Application"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel

@@ -101,6 +101,14 @@ export default function ApplicationsPage() {
     }
   }
 
+  const handleUpdateApplication = (updatedApplication: Application) => {
+    setApplications(applications.map((app) => (app.id === updatedApplication.id ? updatedApplication : app)))
+  }
+
+  const handleDeleteApplication = (deletedId: string) => {
+    setApplications(applications.filter((app) => app.id !== deletedId))
+  }
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFilters({ ...filters, [e.target.name]: e.target.value })
   }
@@ -175,7 +183,12 @@ export default function ApplicationsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {applications.map((application) => (
-              <ApplicationCard key={application.id} application={application} />
+              <ApplicationCard
+                key={application.id}
+                application={application}
+                // onUpdate={handleUpdateApplication}
+                // onDelete={handleDeleteApplication}
+              />
             ))}
           </div>
         )}

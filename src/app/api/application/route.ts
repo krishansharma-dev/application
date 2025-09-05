@@ -101,3 +101,91 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    // Get the authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, ...updateData } = body
+
+    if (!id) {
+      return NextResponse.json({ error: "Application ID is required" }, { status: 400 })
+    }
+
+    // Validate required fields
+    if (!updateData.company_name || !updateData.job_title || !updateData.application_date) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    const { data: application, error } = await supabase
+      .from("applications")
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Database error:", error)
+      return NextResponse.json({ error: "Database error" }, { status: 500 })
+    }
+
+    if (!application) {
+      return NextResponse.json({ error: "Application not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ application })
+  } catch (error) {
+    console.error("Server error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    // Get the authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json({ error: "Application ID is required" }, { status: 400 })
+    }
+
+    const { error } = await supabase.from("applications").delete().eq("id", id).eq("user_id", user.id)
+
+    if (error) {
+      console.error("Database error:", error)
+      return NextResponse.json({ error: "Database error" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Server error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
