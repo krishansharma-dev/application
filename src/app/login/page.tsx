@@ -33,19 +33,16 @@ export default function LoginPage() {
           },
         });
         if (error) throw error;
-
-        // ✅ Redirect after signup
-        router.push('/application');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-
-        // ✅ Redirect after login
-        router.push('/application');
       }
+
+      // ✅ Redirect after both signup & login
+      // router.push('/application');
     } catch (error: any) {
       setError(error.message);
     } finally {

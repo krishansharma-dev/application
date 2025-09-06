@@ -27,9 +27,9 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       setSession(session);
       setLoading(false);
 
-      if (session?.user) {
-        router.push('/application'); // ✅ Redirect if already logged in
-      }
+      // if (session?.user) {
+      //   router.push('/application'); // ✅ Redirect if already logged in
+      // }
     };
 
     getSession();
@@ -42,7 +42,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 
       if (session?.user && event === 'SIGNED_IN') {
         // ✅ Redirect after sign in
-        router.push('/application');
+        // router.push('/application');
 
         // Create user profile if it doesn't exist
         const { error } = await supabase.from('users').upsert([
